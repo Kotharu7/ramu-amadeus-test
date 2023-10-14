@@ -1,0 +1,41 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.window import Window
+from pyspark.sql import functions as F
+import logging
+import configparser
+
+logging.basicConfig(level=logging.INFO)
+
+
+class Solution:
+
+    def config_properties(self):
+        config = configparser.ConfigParser()
+        config.read("D:/Amadeus/resources/config.properties")
+        return config
+
+    def spark_session(self):
+        logging.info("Creating the Spark Configuration")
+        spark = SparkSession.builder.master("local[*]").appName("Amadeus").getOrCreate()
+        return spark
+
+    def read_bookings_file(self, config, sparksession):
+        logging.info("Reading the bookings file")
+        bookings = sparksession.read.format("csv").option("header", True) \
+            .option("inferSchema", True).option("delimiter", "^") \
+            .load(config.get("input", "booking_file")).filter("year==2013")
+        logging.info("window specification")
+        window_spec = Window.partitionBy("arr_port")
+        bookings = bookings.withColumn("cnt_of_pax", F.sum(bookings['pax']).over(window_spec))
+        top_bookings = bookings.select("*")
+        rank_window = Window.partitionBy("year").orderBy(top_bookings['cnt_of_pax'].desc())
+        top_bookings = top_bookings.withColumn("rnk", F.dense_rank().over(rank_window)).filter("rnk <=10")
+        top_bookings = top_bookings.select("arr_port", "arr_city", "cnt_of_pax", "rnk")\
+            .dropDuplicates().orderBy(top_bookings['rnk'])
+        top_bookings.show(50, truncate=False)
+
+
+amadeus = Solution()
+config = amadeus.config_properties()
+spark = amadeus.spark_session()
+amadeus.read_bookings_file(config, spark)
