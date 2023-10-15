@@ -11,7 +11,7 @@ class Solution:
 
     def config_properties(self):
         config = configparser.ConfigParser()
-        config.read("D:/Amadeus/resources/config.properties")
+        config.read("C:/Users/raman/Documents/GitHub/ramu-amadeus-test/resources/config.properties")
         return config
 
     def spark_session(self):
@@ -23,11 +23,12 @@ class Solution:
         logging.info("Reading the bookings file")
         bookings = sparksession.read.format("csv").option("header", True) \
             .option("inferSchema", True).option("delimiter", "^") \
-            .load(config.get("input", "booking_file")).filter("year==2013")
+            .load(config.get("input", "booking_file")).dropDuplicates().filter("year==2013")
         logging.info("window specification")
         window_spec = Window.partitionBy("arr_port")
         bookings = bookings.withColumn("cnt_of_pax", F.sum(bookings['pax']).over(window_spec))
         top_bookings = bookings.select("*")
+        logging.info("window specification to give the rank for top bookings")
         rank_window = Window.partitionBy("year").orderBy(top_bookings['cnt_of_pax'].desc())
         top_bookings = top_bookings.withColumn("rnk", F.dense_rank().over(rank_window)).filter("rnk <=10")
         top_bookings = top_bookings.select("arr_port", "arr_city", "cnt_of_pax", "rnk")\

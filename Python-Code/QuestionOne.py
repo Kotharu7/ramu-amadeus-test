@@ -9,7 +9,7 @@ class Solution:
     def config_properties(self):
 
         config = configparser.ConfigParser()
-        config.read("D:/Amadeus/resources/config.properties")
+        config.read("C:/Users/raman/Documents/GitHub/ramu-amadeus-test/resources/config.properties")
         return config
 
     def spark_session(self):
@@ -20,16 +20,17 @@ class Solution:
     def read_bookings_file(self, config, sparksession):
         logging.info("Reading the bookings file")
         bookings = sparksession.read.format("csv").option("header", True) \
-            .option("inferSchema", True).option("delimiter", "^").load(config.get("input", "booking_file"))
+            .option("inferSchema", True).option("delimiter", "^").load(config.get("input", "booking_file"))\
+            .dropDuplicates()
 
-        logging.info('{}:{}'.format("Booking Count", bookings.count()))
+        logging.info('{}:{}'.format("Booking distinct Count", bookings.count()))
 
     def read_search_file(self, config, sparksession):
         logging.info("Reading the searches file")
         searches = sparksession.getActiveSession().read.format("csv").option("header", True) \
             .option("inferSchema", True).option("delimiter", "^") \
-            .load(config.get("input", "search_file"))
-        logging.info('{}:{}'.format("Search Count", searches.count()))
+            .load(config.get("input", "search_file")).dropDuplicates()
+        logging.info('{}:{}'.format("Search distinct Count", searches.count()))
 
 
 amadeus = Solution()
