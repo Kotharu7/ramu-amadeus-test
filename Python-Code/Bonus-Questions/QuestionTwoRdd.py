@@ -1,8 +1,4 @@
-from itertools import islice
-
 from pyspark.sql import SparkSession
-from pyspark.sql.window import Window
-from pyspark.sql import functions as F
 import logging
 import configparser
 from operator import add
