@@ -3,7 +3,7 @@ from pyspark.sql.window import Window
 from pyspark.sql import functions as F
 import logging
 import configparser
-
+from Utils.SchemaUtil import Schema
 logging.basicConfig(level=logging.INFO)
 
 
@@ -21,9 +21,12 @@ class Solution:
 
     def read_bookings_file(self, config, sparksession):
         logging.info("Reading the bookings file")
-        bookings = sparksession.read.format("csv").option("header", True) \
-            .option("inferSchema", True).option("delimiter", "^") \
-            .load(config.get("input", "booking_file")).dropDuplicates().filter("year==2013")
+        bookings = sparksession.read.format("csv").schema(Schema.booking_schema()) \
+            .option("mode", "PERMISSIVE") \
+            .option("header", True).option("columnNameOfCorruptRecord", "_corrupt_record") \
+            .option("delimiter", "^").load(config.get("input", "booking_file")) \
+            .dropDuplicates().filter("year==2013 and _corrupt_record is null")
+        logging.info('{}:{}'.format("Valid booking  record count", bookings.count()))
         logging.info("window specification")
         window_spec = Window.partitionBy("arr_port")
         bookings = bookings.withColumn("cnt_of_pax", F.sum(bookings['pax']).over(window_spec))
